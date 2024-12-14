@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Stock Trend Analyzer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center">AI-Powered Stock Trend Analyzer</h1>
+        <p class="text-center">Analyze and predict stock trends for NSE and BSE.</p>
+
+        <div class="card mt-4">
+            <div class="card-header">Stock Selection</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label for="stockSymbol" class="form-label">Enter Stock Symbol (e.g., RELIANCE.NS)</label>
+                    <input type="text" id="stockSymbol" class="form-control" placeholder="RELIANCE.NS" value="RELIANCE.NS">
+                </div>
+                <div class="mb-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" id="startDate" class="form-control" value="2020-01-01">
+                </div>
+                <div class="mb-3">
+                    <label for="endDate" class="form-label">End Date</label>
+                    <input type="date" id="endDate" class="form-control">
+                </div>
+                <button class="btn btn-primary" id="fetchData">Fetch Data</button>
+            </div>
+        </div>
+
+        <div id="dataContainer" class="mt-4" style="display: none;">
+            <h3>Stock Price Data</h3>
+            <table class="table table-striped" id="dataTable"></table>
+
+            <h3>Stock Price Chart</h3>
+            <canvas id="priceChart"></canvas>
+
+            <h3>Predicted Stock Trends</h3>
+            <p>Predicted Stock Prices for the next 30 days:</p>
+            <table class="table table-striped" id="predictionTable"></table>
+            <canvas id="predictionChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("fetchData").addEventListener("click", async function() {
+            const stockSymbol = document.getElementById("stockSymbol").value;
+            const startDate = document.getElementById("startDate").value;
+            const endDate = document.getElementById("endDate").value;
+
+            if (!stockSymbol || !startDate || !endDate) {
+                alert("Please fill all fields.");
+                return;
+            }
+
+            try {
+                // Fetch stock data using backend API (placeholder logic)
+                const response = await fetch(`/api/fetch_stock_data?symbol=${stockSymbol}&start=${startDate}&end=${endDate}`);
+                const stockData = await response.json();
+
+                if (!stockData || stockData.error) {
+                    alert("Error fetching stock data.");
+                    return;
+                }
+
+                // Populate stock data table
+                const dataTable = document.getElementById("dataTable");
+                dataTable.innerHTML = "<thead><tr><th>Date</th><th>Close Price</th></tr></thead><tbody>" +
+                    stockData.data.map(d => `<tr><td>${d.date}</td><td>${d.close}</td></tr>`).join("") +
+                    "</tbody>";
+
+                // Render stock price chart
+                const priceChartCtx = document.getElementById("priceChart").getContext("2d");
+                new Chart(priceChartCtx, {
+                    type: "line",
+                    data: {
+                        labels: stockData.data.map(d => d.date),
+                        datasets: [{
+                            label: "Close Price",
+                            data: stockData.data.map(d => d.close),
+                            borderColor: "#007bff",
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true }
+                        }
+                    }
+                });
+
+                // Fetch predictions using backend API (placeholder logic)
+                const predictionResponse = await fetch(`/api/predict_stock_trends?symbol=${stockSymbol}`);
+                const predictionData = await predictionResponse.json();
+
+                // Populate prediction table
+                const predictionTable = document.getElementById("predictionTable");
+                predictionTable.innerHTML = "<thead><tr><th>Date</th><th>Predicted Price</th></tr></thead><tbody>" +
+                    predictionData.data.map(p => `<tr><td>${p.date}</td><td>${p.price}</td></tr>`).join("") +
+                    "</tbody>";
+
+                // Render prediction chart
+                const predictionChartCtx = document.getElementById("predictionChart").getContext("2d");
+                new Chart(predictionChartCtx, {
+                    type: "line",
+                    data: {
+                        labels: predictionData.data.map(p => p.date),
+                        datasets: [{
+                            label: "Predicted Price",
+                            data: predictionData.data.map(p => p.price),
+                            borderColor: "#28a745",
+                            fill: false,
+                            borderDash: [5, 5]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: true }
+                        }
+                    }
+                });
+
+                // Show data container
+                document.getElementById("dataContainer").style.display = "block";
+            } catch (error) {
+                alert("An error occurred: " + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
+

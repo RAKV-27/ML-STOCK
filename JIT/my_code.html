@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Stock Analysis Dashboard</h1>
+
+        <!-- Form to input stock ticker -->
+        <form id="stockForm" class="mt-4">
+            <div class="mb-3">
+                <label for="ticker" class="form-label">Enter Stock Ticker</label>
+                <input type="text" class="form-control" id="ticker" name="ticker" placeholder="e.g., AAPL" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Analyze</button>
+        </form>
+
+        <!-- Loader -->
+        <div id="loader" class="text-center mt-4" style="display: none;">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results" class="mt-5" style="display: none;">
+            <h3>Stock Analysis Results</h3>
+
+            <div class="mb-4">
+                <h5>Sentiment Score: <span id="sentimentScore"></span></h5>
+            </div>
+
+            <h5>Stock Chart</h5>
+            <canvas id="stockChart"></canvas>
+
+            <h5 class="mt-4">Predictions</h5>
+            <ul id="predictions" class="list-group"></ul>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        const form = document.getElementById('stockForm');
+        const loader = document.getElementById('loader');
+        const results = document.getElementById('results');
+        const sentimentScore = document.getElementById('sentimentScore');
+        const predictionsList = document.getElementById('predictions');
+        const stockChartCanvas = document.getElementById('stockChart').getContext('2d');
+        let stockChart;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('ticker').value.trim();
+
+            if (!ticker) {
+                alert('Please enter a stock ticker.');
+                return;
+            }
+
+            results.style.display = 'none';
+            loader.style.display = 'block';
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ticker }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    alert(`Error: ${errorData.error}`);
+                    loader.style.display = 'none';
+                    return;
+                }
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                alert('An error occurred while fetching stock data.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        });
+
+        function displayResults(data) {
+            results.style.display = 'block';
+
+            // Display sentiment score
+            sentimentScore.textContent = data.sentiment_score.toFixed(2);
+
+            // Populate stock chart
+            if (stockChart) {
+                stockChart.destroy();
+            }
+            stockChart = new Chart(stockChartCanvas, {
+                type: 'line',
+                data: {
+                    labels: data.stock_chart.dates,
+                    datasets: [
+                        {
+                            label: 'Close Price',
+                            data: data.stock_chart.close,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'SMA50',
+                            data: data.stock_chart.sma50,
+                            borderColor: 'green',
+                            fill: false
+                        },
+                        {
+                            label: 'SMA200',
+                            data: data.stock_chart.sma200,
+                            borderColor: 'red',
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                    },
+                }
+            });
+
+            // Populate predictions
+            predictionsList.innerHTML = '';
+            data.predictions.dates.forEach((date, index) => {
+                const prediction = data.predictions.predictions[index] === 1 ? 'Up' : 'Down';
+                const listItem = document.createElement('li');
+                listItem.textContent = `${date}: ${prediction}`;
+                listItem.className = `list-group-item ${prediction === 'Up' ? 'list-group-item-success' : 'list-group-item-danger'}`;
+                predictionsList.appendChild(listItem);
+            });
+        }
+    </script>
+</body>
+</html>
